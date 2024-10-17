@@ -51,5 +51,6 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--fasta", type=str, required=True)
     args = parser.parse_args()
     
-    fr = FastaRenamer(args.fasta)
+    #fr = FastaRenamer(args.fasta)
+    fr = FastaSampler(args.fasta, 10_000)
     fr.run()
