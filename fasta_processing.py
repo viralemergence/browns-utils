@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
-from Bio import SeqIO
 from csv import reader
 from pathlib import Path
+from typing import Iterator
 
 class FastaSampler:
     def __init__(self, fasta_path: str, sampling_number: int) -> None:
@@ -14,16 +14,36 @@ class FastaSampler:
 
     @classmethod
     def head_fasta(cls, fasta_path: Path, fasta_outpath: Path, sampling_number: int) -> None:
-        with fasta_path.open() as inhandle, fasta_outpath.open("w") as outhandle:
-            fasta_reader = SeqIO.parse(inhandle, "fasta")
-            for i, record in enumerate(fasta_reader, 1):
+        with fasta_outpath.open("w") as outhandle:
+            for i, fasta_seq in enumerate(cls.fasta_chunker(fasta_path)):
                 if i > sampling_number:
                     break
-                SeqIO.write(record, outhandle, "fasta")
+                for line in fasta_seq:
+                    outhandle.write(line + "\n")
 
     @staticmethod
     def set_fasta_outpath(fasta_path: Path, sampling_number: int) -> Path:
         return fasta_path.parent / f"{fasta_path.stem}_{sampling_number}_sampled.fasta"
+
+    @staticmethod
+    def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
+        fasta_seq = []
+        first_chunk = True
+        with fasta_path.open() as inhandle:
+            reader_iterator = reader(inhandle)
+            for line in reader_iterator:
+                line = line[0]
+                if not line.startswith(">"):
+                    fasta_seq.append(line)
+                else:
+                    if first_chunk:
+                        fasta_seq.append(line)
+                        first_chunk = False
+                        continue
+                    yield fasta_seq
+                    fasta_seq = [line]
+            if fasta_seq:
+                yield fasta_seq
 
 class FastaRenamer:
     def __init__(self, fasta_path: str) -> None:
