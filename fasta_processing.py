@@ -72,5 +72,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     #fr = FastaRenamer(args.fasta)
-    fr = FastaSampler(args.fasta, 10_000)
-    fr.run()
+    fs = FastaSampler(args.fasta, 10_000)
+    fs.run()
