@@ -12,18 +12,18 @@ class FastaSampler:
         fasta_outpath = self.set_fasta_outpath(self.fasta_path, self.sampling_number)
         self.head_fasta(self.fasta_path, fasta_outpath, self.sampling_number)
 
+    @staticmethod
+    def set_fasta_outpath(fasta_path: Path, sampling_number: int) -> Path:
+        return fasta_path.parent / f"{fasta_path.stem}_{sampling_number}_sampled.fasta"
+
     @classmethod
     def head_fasta(cls, fasta_path: Path, fasta_outpath: Path, sampling_number: int) -> None:
         with fasta_outpath.open("w") as outhandle:
-            for i, fasta_seq in enumerate(cls.fasta_chunker(fasta_path)):
+            for i, fasta_seq in enumerate(cls.fasta_chunker(fasta_path), 1):
                 if i > sampling_number:
                     break
                 for line in fasta_seq:
                     outhandle.write(line + "\n")
-
-    @staticmethod
-    def set_fasta_outpath(fasta_path: Path, sampling_number: int) -> Path:
-        return fasta_path.parent / f"{fasta_path.stem}_{sampling_number}_sampled.fasta"
 
     @staticmethod
     def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
