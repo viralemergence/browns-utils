@@ -1,1 +1,0 @@
-python3 codon_usage_calculator.py --gtf "/home/alexander.brown/browns-utils/data/GCF_014176215.1_mRouAeg1.p_genomic.gtf"

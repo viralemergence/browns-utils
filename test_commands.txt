@@ -1,0 +1,1 @@
+python3 codon_usage_calculator.py --cds "/home/alexander.brown/browns-utils/data/ncbi_dataset/data/GCF_000002285.5/cds_from_genomic.fna"
