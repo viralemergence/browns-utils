@@ -73,12 +73,17 @@ class CdsManager:
         return [''.join(p) for p in product(nucleotides, repeat=3)]
 
     def run(self) -> None:
+        unique_ids = self.extract_ids_for_non_redundant_sequences(self.cds_path)
         total = 0
+        non_redundant = 0
         not_divisible = []
         bad_codons = defaultdict(int)
         for fasta_feature in self.fasta_chunker(self.cds_path):
             total += 1
             fasta_name = fasta_feature[0]
+            if fasta_name not in unique_ids:
+                continue
+            non_redundant += 1
             fasta_seq = "".join(fasta_feature[1:])
 
             if (remainder := len(fasta_seq) % 3) != 0:
@@ -92,11 +97,31 @@ class CdsManager:
                     bad_codons[codon] += 1
         codon_usage = self.convert_codon_counts_to_proportion(self.codon_dict)
 
-        print(total)
-        print(len(not_divisible))
-        print(self.codon_dict)
+        print(f"Total: {total}")
+        print(f"Non-redundant: {non_redundant}")
+        print(f"Not divisible by 3: {len(not_divisible)}")
         print(bad_codons)
         print(codon_usage)
+
+    @classmethod
+    def extract_ids_for_non_redundant_sequences(cls, fasta_path: Path) -> set[str]:
+        sequence_info = defaultdict(lambda: defaultdict(int))
+        for fasta_feature in cls.fasta_chunker(fasta_path):
+            fasta_name = fasta_feature[0]
+            gene = fasta_name.split("[")[1].strip().replace("gene=", "")[:-1] # NOTE: Should clean up
+            fasta_seq_len = len("".join(fasta_feature[1:]))
+
+            lead_seq_length = sequence_info[gene]["length"]
+            if fasta_seq_len > lead_seq_length:
+                sequence_info[gene]["length"] = fasta_seq_len
+                sequence_info[gene]["id"] = fasta_name
+
+        ids_for_non_redundant_sequences = set()
+        for gene, info in sequence_info.items():
+            unique_id = info["id"]
+            ids_for_non_redundant_sequences.add(unique_id)
+
+        return ids_for_non_redundant_sequences
 
     @staticmethod
     def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
