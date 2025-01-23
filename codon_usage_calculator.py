@@ -82,6 +82,7 @@ class CdsManager:
         return [''.join(p) for p in product(nucleotides, repeat=3)]
 
     def run(self) -> None:
+        print(f"Starting on: {self.cds_path.stem}")
         unique_ids = self.extract_ids_for_non_redundant_sequences(self.cds_path)
 
         for fasta_feature in self.fasta_chunker(self.cds_path):
@@ -133,7 +134,13 @@ class CdsManager:
         with fasta_path.open() as inhandle:
             reader_iterator = reader(inhandle)
             for line in reader_iterator:
-                line = line[0]
+                try:
+                    line = line[0]
+                except IndexError:
+                    if len(line) == 0:
+                        continue
+                    else:
+                        raise Exception
                 if not line.startswith(">"):
                     fasta_seq.append(line)
                 else:
@@ -182,11 +189,26 @@ class CdsManager:
             for codon, count in unconforming_codons.items():
                 csv_writer.writerow([codon, count])
 
+class CdsArrayManager:
+    def __init__(self) -> None:
+        pass
+
+    @classmethod
+    def get_cds_file(cls, input_dir: Path, file_index: int) -> Path:
+        cds_files = sorted([cds for cds in input_dir.iterdir()])
+        return cds_files[file_index]
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-c", "--cds", type=str, required=True)
     parser.add_argument("-o", "--outdir", type=str, required=True)
+    parser.add_argument("-j", "--file_index", type=int, required=False)
     args = parser.parse_args()
 
-    cm = CdsManager(Path(args.cds), Path(args.outdir))
+    if (file_index := args.file_index) is not None:
+        cds_file_path = CdsArrayManager().get_cds_file(Path(args.cds), file_index)
+    else:
+        cds_file_path = Path(args.cds)
+
+    cm = CdsManager(cds_file_path, Path(args.outdir))
     cm.run()

@@ -1,3 +1,8 @@
 python3 codon_usage_calculator.py \
     --cds "/home/alexander.brown/browns-utils/data/ncbi_dataset/data/GCF_000002285.5/cds_from_genomic.fna" \
     --outdir "/home/alexander.brown/browns-utils/data/codon_outdir"
+
+python3 codon_usage_calculator.py \
+    --cds "/home/alexander.brown/browns-utils/data/ncbi_dataset/data/GCF_000002285.5/" \
+    --outdir "/home/alexander.brown/browns-utils/data/codon_outdir" \
+    --file_index 0
