@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from collections import defaultdict
-from csv import reader
+from csv import reader, writer
 from itertools import product
 from pathlib import Path
 from typing import Any, Iterator, Union
@@ -58,9 +58,18 @@ class GtfManager:
         return cds_info
 
 class CdsManager:
-    def __init__(self, cds_path: Path) -> None:
+    def __init__(self, cds_path: Path, outdir_path: Path) -> None:
         self.cds_path = cds_path
+        self.outdir_path = outdir_path
+        self.codon_usage_path = self.outdir_path / f"{cds_path.stem}_codon_usage.csv"
+        self.codon_log_path = self.outdir_path / f"{cds_path.stem}_codon_usage_stats.csv"
+
         self.codon_dict = self.set_codon_dict()
+
+        self.total_cds = 0
+        self.non_redundant_cds = 0
+        self.not_divisible_cds = []
+        self.unconforming_codons = defaultdict(int)
 
     @classmethod
     def set_codon_dict(cls) -> dict[int]:
@@ -74,34 +83,28 @@ class CdsManager:
 
     def run(self) -> None:
         unique_ids = self.extract_ids_for_non_redundant_sequences(self.cds_path)
-        total = 0
-        non_redundant = 0
-        not_divisible = []
-        bad_codons = defaultdict(int)
+
         for fasta_feature in self.fasta_chunker(self.cds_path):
-            total += 1
+            self.total_cds += 1
             fasta_name = fasta_feature[0]
             if fasta_name not in unique_ids:
                 continue
-            non_redundant += 1
+            self.non_redundant_cds += 1
             fasta_seq = "".join(fasta_feature[1:])
 
             if (remainder := len(fasta_seq) % 3) != 0:
-                not_divisible.append(fasta_name)
+                self.not_divisible_cds.append(fasta_name)
                 continue
 
-            for codon in self.codon_chunker(fasta_seq):
-                try:
-                    self.codon_dict[codon] += 1
-                except KeyError:
-                    bad_codons[codon] += 1
-        codon_usage = self.convert_codon_counts_to_proportion(self.codon_dict)
+            self.process_cds_codons(fasta_seq, self.codon_dict, self.unconforming_codons)
 
-        print(f"Total: {total}")
-        print(f"Non-redundant: {non_redundant}")
-        print(f"Not divisible by 3: {len(not_divisible)}")
-        print(bad_codons)
-        print(codon_usage)
+        codon_usage = self.convert_codon_counts_to_proportion(self.codon_dict)
+        self.write_codon_usage(self.codon_usage_path, codon_usage)
+
+        log_info = {"Total_CDS": self.total_cds,
+                    "Non-redundant_CDS": self.non_redundant_cds,
+                    "Not_divisible_CDS": len(self.not_divisible_cds)}
+        self.write_codon_stats(self.codon_log_path, log_info, self.unconforming_codons)
 
     @classmethod
     def extract_ids_for_non_redundant_sequences(cls, fasta_path: Path) -> set[str]:
@@ -143,6 +146,14 @@ class CdsManager:
             if fasta_seq:
                 yield fasta_seq
 
+    @classmethod
+    def process_cds_codons(cls, fasta_seq: str, codons: dict[int], unconforming_codons: defaultdict[int]) -> None:
+        for codon in cls.codon_chunker(fasta_seq):
+            try:
+                codons[codon] += 1
+            except KeyError:
+                unconforming_codons[codon] += 1
+
     @staticmethod
     def codon_chunker(dna_seq: str) -> Iterator[str]:
         codon_size = 3
@@ -155,11 +166,27 @@ class CdsManager:
         codon_proportions = {codon: round(count/codon_total, 4) for codon, count in codons.items()}
         return codon_proportions
 
+    @staticmethod
+    def write_codon_usage(codon_usage_path: Path, codon_usage: dict[float]) -> None:
+        with codon_usage_path.open("w") as outhandle:
+            csv_writer = writer(outhandle)
+            for codon, usage in codon_usage.items():
+                csv_writer.writerow([codon, usage])
+
+    @staticmethod
+    def write_codon_stats(codon_log_path: Path, log_info: dict[Any], unconforming_codons: defaultdict[int]) -> None:
+        with codon_log_path.open("w") as outhandle:
+            csv_writer = writer(outhandle)
+            for key, value in log_info.items():
+                csv_writer.writerow([key, value])
+            for codon, count in unconforming_codons.items():
+                csv_writer.writerow([codon, count])
+
 if __name__ == "__main__":
     parser = ArgumentParser()
-    # parser.add_argument("-g", "--gtf", type=str, required=True)
     parser.add_argument("-c", "--cds", type=str, required=True)
+    parser.add_argument("-o", "--outdir", type=str, required=True)
     args = parser.parse_args()
 
-    cm = CdsManager(Path(args.cds))
+    cm = CdsManager(Path(args.cds), Path(args.outdir))
     cm.run()
