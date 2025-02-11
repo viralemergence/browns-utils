@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from collections import defaultdict
+from constants import CODON_TO_AMINO_ACID
 from csv import reader, writer
 from itertools import product
 from pathlib import Path
@@ -81,7 +82,7 @@ class CdsManager:
         nucleotides = ["A", "T", "C", "G"]
         return [''.join(p) for p in product(nucleotides, repeat=3)]
 
-    def run(self) -> None:
+    def run(self) -> dict[float]:
         print(f"Starting on: {self.cds_path.stem}")
         unique_ids = self.extract_ids_for_non_redundant_sequences(self.cds_path)
 
@@ -106,6 +107,8 @@ class CdsManager:
                     "Non-redundant_CDS": self.non_redundant_cds,
                     "Not_divisible_CDS": len(self.not_divisible_cds)}
         self.write_codon_stats(self.codon_log_path, log_info, self.unconforming_codons)
+
+        return codon_usage
 
     @classmethod
     def extract_ids_for_non_redundant_sequences(cls, fasta_path: Path) -> set[str]:
@@ -189,6 +192,38 @@ class CdsManager:
             for codon, count in unconforming_codons.items():
                 csv_writer.writerow([codon, count])
 
+class CodonToAminoAcidManager:
+    def __init__(self, codon_to_aa: dict[str], outdir_path: Path, outfile_stem: str) -> None:
+        self.codon_to_aa = codon_to_aa
+        self.outdir_path = outdir_path
+        self.aa_usage_path = self.outdir_path / f"{outfile_stem}_aa_usage.csv"
+
+    def run(self, codon_usage: dict[float]) -> None:
+        aa_usage = self.calculate_aa_usage(codon_usage, self.codon_to_aa)
+        self.write_aa_usage(self.aa_usage_path, aa_usage)
+
+    @classmethod
+    def calculate_aa_usage(cls, codon_usage: dict[float], codon_to_aa: dict[str]) -> defaultdict[int]:
+        aa_usage = cls.set_aa_dict(codon_to_aa)
+        for codon, proportion in codon_usage.items():
+            aa = codon_to_aa[codon]
+            aa_usage[aa] += proportion
+
+        aa_usage = {aa: round(count, 4) for aa, count in aa_usage.items()}
+        return aa_usage
+
+    @staticmethod
+    def set_aa_dict(codon_to_aa: dict[str]) -> dict[int]:
+        amino_acids_sorted = sorted([aa for codon, aa in codon_to_aa.items()])
+        return {aa: 0 for aa in amino_acids_sorted}
+
+    @staticmethod
+    def write_aa_usage(aa_usage_path: Path, aa_usage: dict[float]) -> None:
+        with aa_usage_path.open("w") as outhandle:
+            csv_writer = writer(outhandle)
+            for aa, usage in aa_usage.items():
+                csv_writer.writerow([aa, usage])
+
 class CdsArrayManager:
     def __init__(self) -> None:
         pass
@@ -210,5 +245,10 @@ if __name__ == "__main__":
     else:
         cds_file_path = Path(args.cds)
 
-    cm = CdsManager(cds_file_path, Path(args.outdir))
-    cm.run()
+    outdir_path = Path(args.outdir)
+
+    cm = CdsManager(cds_file_path, outdir_path)
+    codon_usage = cm.run()
+
+    ctaam = CodonToAminoAcidManager(CODON_TO_AMINO_ACID, outdir_path, cds_file_path.stem)
+    ctaam.run(codon_usage)
