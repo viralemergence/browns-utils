@@ -118,10 +118,11 @@ class CdsManager:
         for fasta_feature in cls.fasta_chunker(fasta_path):
             fasta_name = fasta_feature[0]
             if header_type == 0:
+                # >lcl|NC_014373.1_cds_YP_003815432.1_1 [gene=NP] [locus_tag=BDBVp1] [db_xref=GeneID:9487269] [protein=nucleoprotein] [protein_id=YP_003815432.1] [location=458..2677] [gbkey=CDS]
                 gene = fasta_name.split("[")[1].strip().replace("gene=", "")[:-1] # NOTE: Should clean up
             if header_type == 1:
                 # >NC_055939.1:85..3213 |glycoprotein [Scaldis River bee virus]
-                gene = fasta_name.split("|")[1].split("[")[0][:-1]
+                gene = fasta_name.split("|")[1].split("[")[0].strip()
             fasta_seq_len = len("".join(fasta_feature[1:]))
 
             lead_seq_length = sequence_info[gene]["length"]
