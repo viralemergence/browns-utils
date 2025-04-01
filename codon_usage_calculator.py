@@ -59,11 +59,13 @@ class GtfManager:
         return cds_info
 
 class CdsManager:
-    def __init__(self, cds_path: Path, outdir_path: Path) -> None:
+    def __init__(self, cds_path: Path, outdir_path: Path, header_type: int) -> None:
         self.cds_path = cds_path
         self.outdir_path = outdir_path
         self.codon_usage_path = self.outdir_path / f"{cds_path.stem}_codon_usage.csv"
         self.codon_log_path = self.outdir_path / f"{cds_path.stem}_codon_usage_stats.csv"
+
+        self.header_type = header_type
 
         self.codon_dict = self.set_codon_dict()
 
@@ -84,7 +86,7 @@ class CdsManager:
 
     def run(self) -> dict[float]:
         print(f"Starting on: {self.cds_path.stem}")
-        unique_ids = self.extract_ids_for_non_redundant_sequences(self.cds_path)
+        unique_ids = self.extract_ids_for_non_redundant_sequences(self.cds_path, self.header_type)
 
         for fasta_feature in self.fasta_chunker(self.cds_path):
             self.total_cds += 1
@@ -111,11 +113,16 @@ class CdsManager:
         return codon_usage
 
     @classmethod
-    def extract_ids_for_non_redundant_sequences(cls, fasta_path: Path) -> set[str]:
+    def extract_ids_for_non_redundant_sequences(cls, fasta_path: Path, header_type: int) -> set[str]:
         sequence_info = defaultdict(lambda: defaultdict(int))
         for fasta_feature in cls.fasta_chunker(fasta_path):
             fasta_name = fasta_feature[0]
-            gene = fasta_name.split("[")[1].strip().replace("gene=", "")[:-1] # NOTE: Should clean up
+            if header_type == 0:
+                # >lcl|NC_014373.1_cds_YP_003815432.1_1 [gene=NP] [locus_tag=BDBVp1] [db_xref=GeneID:9487269] [protein=nucleoprotein] [protein_id=YP_003815432.1] [location=458..2677] [gbkey=CDS]
+                gene = fasta_name.split("[")[1].strip().replace("gene=", "")[:-1] # NOTE: Should clean up
+            if header_type == 1:
+                # >NC_055939.1:85..3213 |glycoprotein [Scaldis River bee virus]
+                gene = fasta_name.split("|")[1].split("[")[0].strip()
             fasta_seq_len = len("".join(fasta_feature[1:]))
 
             lead_seq_length = sequence_info[gene]["length"]
@@ -238,6 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--cds", type=str, required=True)
     parser.add_argument("-o", "--outdir", type=str, required=True)
     parser.add_argument("-j", "--file_index", type=int, required=False)
+    parser.add_argument("-header", type=int, required=True)
     args = parser.parse_args()
 
     if (file_index := args.file_index) is not None:
@@ -247,7 +255,7 @@ if __name__ == "__main__":
 
     outdir_path = Path(args.outdir)
 
-    cm = CdsManager(cds_file_path, outdir_path)
+    cm = CdsManager(cds_file_path, outdir_path, args.header)
     codon_usage = cm.run()
 
     ctaam = CodonToAminoAcidManager(CODON_TO_AMINO_ACID, outdir_path, cds_file_path.stem)
