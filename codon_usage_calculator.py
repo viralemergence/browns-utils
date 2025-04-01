@@ -245,7 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--cds", type=str, required=True)
     parser.add_argument("-o", "--outdir", type=str, required=True)
     parser.add_argument("-j", "--file_index", type=int, required=False)
-    parser.add_argument("-header", type=int, required=False)
+    parser.add_argument("-header", type=int, required=True)
     args = parser.parse_args()
 
     if (file_index := args.file_index) is not None:
