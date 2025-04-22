@@ -137,20 +137,13 @@ class CdsManager:
 
         return ids_for_non_redundant_sequences
 
-    @staticmethod
-    def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
+        @staticmethod
+        def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
         fasta_seq = []
         first_chunk = True
         with fasta_path.open() as inhandle:
-            reader_iterator = reader(inhandle)
-            for line in reader_iterator:
-                try:
-                    line = line[0]
-                except IndexError:
-                    if len(line) == 0:
-                        continue
-                    else:
-                        raise Exception
+            for line in inhandle:
+                line = line.strip()
                 if not line.startswith(">"):
                     fasta_seq.append(line)
                 else:
