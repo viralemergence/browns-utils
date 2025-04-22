@@ -137,8 +137,8 @@ class CdsManager:
 
         return ids_for_non_redundant_sequences
 
-        @staticmethod
-        def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
+    @staticmethod
+    def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
         fasta_seq = []
         first_chunk = True
         with fasta_path.open() as inhandle:
