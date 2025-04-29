@@ -157,23 +157,16 @@ class CdsSequenceDinucleotideBiasCalculator(SingleSequenceDinucleotideBiasCalcul
 
     @staticmethod
     def fasta_chunker(fasta_path: Path) -> Iterator[list[str]]:
-        fasta_seq = []
+        fasta_seq: list[str] = [] # NOTE: declare list of strings
         first_chunk = True
         with fasta_path.open() as inhandle:
-            reader_iterator = reader(inhandle)
-            for line in reader_iterator:
-                try:
-                    line = line[0]
-                except IndexError:
-                    if len(line) == 0:
-                        continue
-                    else:
-                        raise Exception
+            for line in inhandle:
+                line = line.strip()
                 if not line.startswith(">"):
                     fasta_seq.append(line)
-                else:
+                else: 
                     if first_chunk:
-                        fasta_seq.append(line)
+                        fasta_seq.append(line)            
                         first_chunk = False
                         continue
                     yield fasta_seq
